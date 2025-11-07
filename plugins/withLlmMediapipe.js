@@ -2,6 +2,7 @@
 const {
   withAndroidManifest,
   withGradleProperties,
+  withEntitlementsPlist,
 } = require("@expo/config-plugins");
 
 // Function for handling AndroidManifest.xml changes
@@ -87,6 +88,17 @@ function addGradleMemorySettings(gradleProperties) {
   return gradleProperties;
 }
 
+// Function for handling iOS entitlements (increase memory allocation)
+function addIosMemoryEntitlement(entitlements) {
+  const key = "com.apple.developer.kernel.increased-memory-limit";
+
+  if (entitlements[key] !== true) {
+    entitlements[key] = true;
+  }
+
+  return entitlements;
+}
+
 // Main plugin function that applies both modifications
 module.exports = function withLlmMediapipe(config) {
   // First, modify the Android Manifest
@@ -98,6 +110,12 @@ module.exports = function withLlmMediapipe(config) {
   // Then, modify Gradle Properties to increase memory
   config = withGradleProperties(config, (config) => {
     config.modResults = addGradleMemorySettings(config.modResults);
+    return config;
+  });
+
+  // Finally, enable the increased memory limit entitlement on iOS
+  config = withEntitlementsPlist(config, (config) => {
+    config.modResults = addIosMemoryEntitlement(config.modResults ?? {});
     return config;
   });
 
