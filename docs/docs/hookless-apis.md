@@ -373,7 +373,4 @@ ExpoLlmMediapipe.removeAllListeners('downloadProgress');
 
 ## Complete Examples
 
-Refer to these example implementations for practical usage:
-- [Model loading from assets](https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe/blob/main/example/src/screens/HooklessAssetDemoScreen.tsx)
-- [Model download and inference](https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe/blob/main/example/src/screens/HooklessDownloadableDemoScreen.tsx)
-- [Model utility functions](https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe/blob/main/example/src/screens/HooklessUtilityDemoScreen.tsx)
+The legacy `example/` project has been removed while we rebuild the Android experience. Updated end-to-end samples will return soon; meanwhile, adapt the code snippets above directly inside your own app.

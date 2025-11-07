@@ -1,5 +1,5 @@
 <div align="left">
-  <img src="https://img.shields.io/npm/v/expo-llm-mediapipe.svg?style=flat-square" alt="npm version">
+  <img src="https://img.shields.io/npm/v/expo-gemma.svg?style=flat-square" alt="npm version">
   <img src="https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue.svg?style=flat-square" alt="Platform support">
   <img src="https://img.shields.io/badge/Expo-SDK%2050%2B-blue.svg?style=flat-square" alt="Expo SDK">
   <img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License">
@@ -16,20 +16,20 @@ The MediaPipe LLM Inference API enables running large language models entirely o
 ## Documentation
 
 Take a look at how our library can help build you your Expo React Native AI features in our docs: \
-[https://tirthajyoti-ghosh.github.io/expo-llm-mediapipe/](https://tirthajyoti-ghosh.github.io/expo-llm-mediapipe/)
+[https://chux0519.github.io/expo-gemma/](https://chux0519.github.io/expo-gemma/)
 
 ## Quick Start - Running Gemma
 
 ### Step 1: Installation
 
 ```bash
-npx expo install expo-llm-mediapipe
+npx expo install expo-gemma
 ```
 
 ### Step 2: Setup and init
 
 ```tsx
-import { useLLM } from 'expo-llm-mediapipe';
+import { useLLM } from 'expo-gemma';
 
 function App() {
   const llm = useLLM({
@@ -67,6 +67,27 @@ const run = async () => {
   console.log('Model result:', result);
 };
 ```
+
+## Use in an Existing App (e.g. `../poti`)
+
+1. **Remove the previous package** (if you had `expo-llm-mediapipe` installed):
+   ```bash
+   cd ../poti
+   npm uninstall expo-llm-mediapipe
+   ```
+2. **Install this repo locally** while you iterate:
+   ```bash
+   npm install ../expo-gemma
+   # or: yarn add link:../expo-gemma
+   # or: pnpm add ../expo-gemma
+   ```
+3. **Update all imports/aliases** so they read `expo-gemma` (run `rg -l "expo-llm-mediapipe"` to double-check).
+4. **Refresh native builds** right after the rename:
+   ```bash
+   npx pod-install          # iOS
+   cd android && ./gradlew clean # Android
+   ```
+5. **Rebuild once per platform** (`npx expo run:ios`, `npx expo run:android`, or your bare workflow) to let Expo autolinking pick up the dependency from the new package name.
 
 ## Minimum Supported Versions
 

@@ -85,7 +85,4 @@ await llm.generateStreamingResponse(
 
 ### **Examples**
 
-Refer to these example usages for practical implementations:
-
-- [Model loading from assets](https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe/blob/main/example/src/screens/HookAssetDemoScreen.tsx)
-- [Model download and inference](https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe/blob/main/example/src/screens/HookDownloadableDemoScreen.tsx)
+The previous demo app has been removed while we prepare a new Android integration walkthrough. Use the snippets above as the current reference, and keep an eye on the repo for the refreshed sample project.

@@ -13,13 +13,13 @@ const config = {
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://tirthajyoti-ghosh.github.io',
+  url: 'https://chux0519.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
-  baseUrl: '/expo-llm-mediapipe/',
+  baseUrl: '/expo-gemma/',
 
   // GitHub pages deployment config.
-  organizationName: 'tirthajyoti-ghosh', // Your GitHub org/user name.
-  projectName: 'expo-llm-mediapipe', // Your repo name.
+  organizationName: 'chux0519', // Your GitHub org/user name.
+  projectName: 'expo-gemma', // Your repo name.
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -38,7 +38,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe/edit/main/docs/',
+          editUrl: 'https://github.com/chux0519/expo-gemma/edit/main/docs/',
           sidebarCollapsible: false,
         },
         theme: {
@@ -62,7 +62,7 @@ const config = {
             label: 'Docs',
           },
           {
-            href: 'https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe',
+            href: 'https://github.com/chux0519/expo-gemma',
             label: 'GitHub',
             position: 'right',
           },
@@ -85,7 +85,7 @@ const config = {
             items: [
               {
                 label: 'Stack Overflow',
-                href: 'https://stackoverflow.com/questions/tagged/expo-llm-mediapipe',
+                href: 'https://stackoverflow.com/questions/tagged/expo-gemma',
               },
               {
                 label: 'Discord',
@@ -102,7 +102,7 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/tirthajyoti-ghosh/expo-llm-mediapipe',
+                href: 'https://github.com/chux0519/expo-gemma',
               },
             ],
           },

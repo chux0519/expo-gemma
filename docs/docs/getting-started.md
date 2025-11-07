@@ -33,21 +33,21 @@ import TabItem from '@theme/TabItem';
 <TabItem value="npm" label="npm" default>
 
 ```bash
-npx expo install expo-llm-mediapipe
+npx expo install expo-gemma
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add expo-llm-mediapipe
+pnpm add expo-gemma
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add expo-llm-mediapipe
+yarn add expo-gemma
 ```
 
 </TabItem>
@@ -73,7 +73,7 @@ Update your `app.json` or `app.config.js` file to include the plugin:
 {
   "expo": {
     "plugins": [
-      "expo-llm-mediapipe"
+      "expo-gemma"
     ]
   }
 }
@@ -99,12 +99,31 @@ npx expo prebuild
 
 ---
 
+## Migrating from `expo-llm-mediapipe`
+
+If you previously used `expo-llm-mediapipe` (for instance inside `../poti`), follow these steps:
+
+1. Remove the old dependency:
+   ```bash
+   npm uninstall expo-llm-mediapipe
+   ```
+2. Install this fork locally (adjust the relative path as needed):
+   ```bash
+   npm install ../expo-gemma
+   # yarn add link:../expo-gemma
+   # pnpm add ../expo-gemma
+   ```
+3. Update every import/TypeScript path alias so it uses `expo-gemma`.
+4. Re-run `npx pod-install` for iOS and clean Gradle/Android Studio for Android, then rebuild (`npx expo run:ios` / `run:android`).
+
+---
+
 ## Example Usage
 
 Here’s a quick example of how to use the package with an asset-based model:
 
 ```tsx
-import { useLLM } from 'expo-llm-mediapipe';
+import { useLLM } from 'expo-gemma';
 
 const llm = useLLM({
   storageType: 'asset',
