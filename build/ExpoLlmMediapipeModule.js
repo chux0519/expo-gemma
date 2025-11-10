@@ -1,6 +1,33 @@
 import { requireNativeModule } from "expo-modules-core";
 import * as React from "react";
 const module = requireNativeModule("ExpoLlmMediapipe");
+const normalizeGenerationInput = (input) => {
+    if (typeof input === "string") {
+        return { prompt: input };
+    }
+    return {
+        prompt: input.prompt,
+        attachments: input.attachments?.filter((attachment) => Boolean(attachment &&
+            typeof attachment.uri === "string" &&
+            attachment.uri.length > 0)),
+    };
+};
+const extractImageUris = (attachments) => {
+    if (!attachments || attachments.length === 0) {
+        return undefined;
+    }
+    const imageUris = attachments
+        .filter((attachment) => attachment.type === "image" && attachment.uri.length > 0)
+        .map((attachment) => attachment.uri);
+    return imageUris.length ? imageUris : undefined;
+};
+const mapGenerationInput = (input) => {
+    const normalized = normalizeGenerationInput(input);
+    return {
+        prompt: normalized.prompt,
+        imageUris: extractImageUris(normalized.attachments),
+    };
+};
 // Dispatcher Implementation
 export function useLLM(props) {
     if ('modelUrl' in props && props.modelUrl !== undefined) {
@@ -111,10 +138,11 @@ function _useLLMDownloadable(props) {
             throw error;
         }
     }, [modelHandle, downloadStatus, modelName, maxTokens, topK, temperature, randomSeed]);
-    const generateResponse = React.useCallback(async (promptText, onPartial, onErrorCb, abortSignal) => {
+    const generateResponse = React.useCallback(async (input, onPartial, onErrorCb, abortSignal) => {
         if (modelHandle === undefined) {
             throw new Error("Model is not loaded. Call loadModel() first.");
         }
+        const { prompt, imageUris } = mapGenerationInput(input);
         const requestId = nextRequestIdRef.current++;
         const partialSub = module.addListener("onPartialResponse", (ev) => {
             if (onPartial && requestId === ev.requestId && ev.handle === modelHandle && !(abortSignal?.aborted ?? false)) {
@@ -127,7 +155,7 @@ function _useLLMDownloadable(props) {
             }
         });
         try {
-            return await module.generateResponse(modelHandle, requestId, promptText);
+            return await module.generateResponse(modelHandle, requestId, prompt, imageUris);
         }
         catch (e) {
             console.error("Generate response error:", e);
@@ -141,10 +169,11 @@ function _useLLMDownloadable(props) {
             errorSub.remove();
         }
     }, [modelHandle]);
-    const generateStreamingResponse = React.useCallback(async (promptText, onPartial, onErrorCb, abortSignal) => {
+    const generateStreamingResponse = React.useCallback(async (input, onPartial, onErrorCb, abortSignal) => {
         if (modelHandle === undefined) {
             throw new Error("Model is not loaded. Call loadModel() first.");
         }
+        const { prompt, imageUris } = mapGenerationInput(input);
         const requestId = nextRequestIdRef.current++;
         return new Promise((resolve, reject) => {
             const partialSubscription = module.addListener("onPartialResponse", (ev) => {
@@ -170,7 +199,7 @@ function _useLLMDownloadable(props) {
                     reject(new Error("Aborted"));
                 });
             }
-            module.generateResponseAsync(modelHandle, requestId, promptText)
+            module.generateResponseAsync(modelHandle, requestId, prompt, imageUris)
                 .then(() => {
                 if (!(abortSignal?.aborted ?? false)) {
                     errorSubscription.remove();
@@ -264,10 +293,11 @@ function _useLLMBase(props) {
             }
         };
     }, [modelHandle]);
-    const generateResponse = React.useCallback(async (promptText, onPartial, onErrorCb, abortSignal) => {
+    const generateResponse = React.useCallback(async (input, onPartial, onErrorCb, abortSignal) => {
         if (modelHandle === undefined) {
             throw new Error("Model handle is not defined. Ensure model is created/loaded.");
         }
+        const { prompt, imageUris } = mapGenerationInput(input);
         const requestId = nextRequestIdRef.current++;
         const partialSub = module.addListener("onPartialResponse", (ev) => {
             if (onPartial && requestId === ev.requestId && ev.handle === modelHandle && !(abortSignal?.aborted ?? false)) {
@@ -280,7 +310,7 @@ function _useLLMBase(props) {
             }
         });
         try {
-            return await module.generateResponse(modelHandle, requestId, promptText);
+            return await module.generateResponse(modelHandle, requestId, prompt, imageUris);
         }
         catch (e) {
             console.error("Generate response error:", e);
@@ -294,10 +324,11 @@ function _useLLMBase(props) {
             errorSub.remove();
         }
     }, [modelHandle]);
-    const generateStreamingResponse = React.useCallback(async (promptText, onPartial, onErrorCb, abortSignal) => {
+    const generateStreamingResponse = React.useCallback(async (input, onPartial, onErrorCb, abortSignal) => {
         if (modelHandle === undefined) {
             throw new Error("Model handle is not defined. Ensure model is created/loaded.");
         }
+        const { prompt, imageUris } = mapGenerationInput(input);
         const requestId = nextRequestIdRef.current++;
         return new Promise((resolve, reject) => {
             const partialSubscription = module.addListener("onPartialResponse", (ev) => {
@@ -323,7 +354,7 @@ function _useLLMBase(props) {
                     reject(new Error("Aborted"));
                 });
             }
-            module.generateResponseAsync(modelHandle, requestId, promptText)
+            module.generateResponseAsync(modelHandle, requestId, prompt, imageUris)
                 .then(() => {
                 if (!(abortSignal?.aborted ?? false)) {
                     errorSubscription.remove();
@@ -353,7 +384,7 @@ function _useLLMBase(props) {
  * Generate a streaming text response from the LLM.
  * This is an independent utility function.
  */
-export function generateStreamingText(modelHandle, prompt, onPartialResponse, onError, abortSignal) {
+export function generateStreamingText(modelHandle, input, onPartialResponse, onError, abortSignal) {
     return new Promise((resolve, reject) => {
         if (!modelHandle && modelHandle !== 0) { // modelHandle can be 0
             reject(new Error("Invalid model handle provided to generateStreamingText."));
@@ -401,8 +432,9 @@ export function generateStreamingText(modelHandle, prompt, onPartialResponse, on
                 reject(new Error("Aborted"));
             });
         }
+        const { prompt, imageUris } = mapGenerationInput(input);
         module
-            .generateResponseAsync(modelHandle, requestId, prompt)
+            .generateResponseAsync(modelHandle, requestId, prompt, imageUris)
             .then(() => {
             if (!(abortSignal?.aborted ?? false)) {
                 partialSubscription.remove();

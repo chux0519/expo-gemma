@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "expo": "^54.0.21",
-    "expo-file-system": "~17.0.1",
+    "expo-file-system": "~19.0.1",
+    "expo-image-picker": "~17.0.8",
     "expo-secure-store": "~15.0.7",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
@@ -23,7 +24,6 @@
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
   },
-  "private": true,
   "expo": {
     "autolinking": {
       "nativeModulesDir": ".."

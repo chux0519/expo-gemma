@@ -57,7 +57,7 @@ class LlmInferenceModel(
     /**
      * Generates text asynchronously with streaming results via callback
      */
-    fun generateResponseAsync(requestId: Int, prompt: String, callback: (String) -> Unit) {
+    fun generateResponseAsync(requestId: Int, prompt: String, imagePaths: List<String>? = null, callback: (String) -> Unit) {
         this.requestId = requestId
         this.requestResult = ""
         
@@ -75,6 +75,9 @@ class LlmInferenceModel(
             
             // Add the prompt to the session
             llmInferenceSession.addQueryChunk(prompt)
+            if (!imagePaths.isNullOrEmpty()) {
+                inferenceListener?.logging(this, "Image attachments are not supported on Android yet; ignoring ${imagePaths.size} image(s).")
+            }
             
             // Define the progress listener for streaming results
             val progressListener = ProgressListener<String> { result, isFinished ->
@@ -100,7 +103,7 @@ class LlmInferenceModel(
     /**
      * Generates text synchronously and returns the complete response
      */
-    fun generateResponse(requestId: Int, prompt: String): String {
+    fun generateResponse(requestId: Int, prompt: String, imagePaths: List<String>? = null): String {
         this.requestId = requestId
         this.requestResult = ""
         
@@ -118,6 +121,9 @@ class LlmInferenceModel(
             
             // Add the prompt to the session
             llmInferenceSession.addQueryChunk(prompt)
+            if (!imagePaths.isNullOrEmpty()) {
+                inferenceListener?.logging(this, "Image attachments are not supported on Android yet; ignoring ${imagePaths.size} image(s).")
+            }
             
             val stringBuilder = StringBuilder()
 

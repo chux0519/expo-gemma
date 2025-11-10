@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import MediaPipeTasksGenAI
 
 enum LlmError: Error {
@@ -22,6 +23,7 @@ class LlmInferenceModel {
   private let temperature: Float
   private let topK: Int
   private let randomSeed: Int
+  private let maxImages = 4
   
   init(modelPath: String, maxTokens: Int, topK: Int, temperature: Float, randomSeed: Int,
        eventEmitter: @escaping (String, [String: Any]) -> Void, modelHandle: Int) throws {
@@ -44,6 +46,7 @@ class LlmInferenceModel {
       let options = LlmInference.Options(modelPath: modelPath)
       options.maxTokens = maxTokens
       options.maxTopk = topK
+      options.maxImages = maxImages
 
       // Create the LlmInference instance
       inference = try LlmInference(options: options)
@@ -66,9 +69,13 @@ class LlmInferenceModel {
   }
 
   private func createSession() throws {
-    // Based on the sample code, we create a session without additional options
+    let sessionOptions = LlmInference.Session.Options()
+    sessionOptions.temperature = temperature
+    sessionOptions.topk = topK
+    sessionOptions.randomSeed = randomSeed
+    sessionOptions.enableVisionModality = true
     do {
-      session = try LlmInference.Session(llmInference: inference)
+      session = try LlmInference.Session(llmInference: inference, options: sessionOptions)
       
       // Log success
       self.eventEmitter("logging", [
@@ -81,16 +88,41 @@ class LlmInferenceModel {
   }
   
   private func formatPrompt(text: String) -> String {
+    // skip formatting (underlying C library could handle it)
+    return text
     // Format prompt similar to the sample code for best results
-    let startTurn = "<start_of_turn>"
-    let endTurn = "<end_of_turn>"
-    let userPrefix = "user"
-    let modelPrefix = "model"
+    // let startTurn = "<start_of_turn>"
+    // let endTurn = "<end_of_turn>"
+    // let userPrefix = "user"
+    // let modelPrefix = "model"
     
-    return "\(startTurn)\(userPrefix)\n\(text)\(endTurn)\(startTurn)\(modelPrefix)"
+    // return "\(startTurn)\(userPrefix)\n\(text)\(endTurn)\(startTurn)\(modelPrefix)"
   }
   
-  func generateResponse(requestId: Int, prompt: String, completion: @escaping (Result<String, Error>) -> Void) throws {
+  private func loadImage(at path: String) throws -> CGImage {
+    let url: URL
+    if path.hasPrefix("file://"), let parsed = URL(string: path) {
+      url = parsed
+    } else {
+      url = URL(fileURLWithPath: path)
+    }
+    
+    let data = try Data(contentsOf: url)
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+          let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+      throw LlmError.sessionError("Failed to decode image at \(path)")
+    }
+    return cgImage
+  }
+  
+  private func addImages(from imagePaths: [String], to session: LlmInference.Session) throws {
+    for path in imagePaths {
+      let image = try loadImage(at: path)
+      try session.addImage(image: image)
+    }
+  }
+  
+  func generateResponse(requestId: Int, prompt: String, imagePaths: [String]?, completion: @escaping (Result<String, Error>) -> Void) throws {
     guard let session = session else {
       throw LlmError.sessionError("Session not initialized")
     }
@@ -108,6 +140,9 @@ class LlmInferenceModel {
       do {
         let formattedPrompt = formatPrompt(text: prompt)
         try session.addQueryChunk(inputText: formattedPrompt)
+        if let images = imagePaths, !images.isEmpty {
+          try addImages(from: images, to: session)
+        }
         
         var fullResponse = ""
         let responseStream = session.generateResponseAsync()
@@ -148,7 +183,7 @@ class LlmInferenceModel {
     }
   }
   
-  func generateStreamingResponse(requestId: Int, prompt: String, completion: @escaping (Bool) -> Void) throws {
+  func generateStreamingResponse(requestId: Int, prompt: String, imagePaths: [String]?, completion: @escaping (Bool) -> Void) throws {
     guard let session = session else {
       throw LlmError.sessionError("Session not initialized")
     }
@@ -166,6 +201,9 @@ class LlmInferenceModel {
       do {
         let formattedPrompt = formatPrompt(text: prompt)
         try session.addQueryChunk(inputText: formattedPrompt)
+        if let images = imagePaths, !images.isEmpty {
+          try addImages(from: images, to: session)
+        }
         
         let responseStream = session.generateResponseAsync()
         

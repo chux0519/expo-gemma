@@ -231,7 +231,7 @@ class ExpoLlmMediapipeModule : Module() {
       }
     }
 
-    AsyncFunction("generateResponse") { handle: Int, requestId: Int, prompt: String, promise: Promise ->
+    AsyncFunction("generateResponse") { handle: Int, requestId: Int, prompt: String, imageUris: List<String>?, promise: Promise ->
       try {
         val model = modelMap[handle]
         if (model == null) {
@@ -245,7 +245,7 @@ class ExpoLlmMediapipeModule : Module() {
         ))
         
         // Use the synchronous version
-        val response = model.generateResponse(requestId, prompt)
+        val response = model.generateResponse(requestId, prompt, imageUris)
         promise.resolve(response)
       } catch (e: Exception) {
         sendEvent("logging", mapOf(
@@ -256,7 +256,7 @@ class ExpoLlmMediapipeModule : Module() {
       }
     }
 
-    AsyncFunction("generateResponseAsync") { handle: Int, requestId: Int, prompt: String, promise: Promise ->
+    AsyncFunction("generateResponseAsync") { handle: Int, requestId: Int, prompt: String, imageUris: List<String>?, promise: Promise ->
       try {
         val model = modelMap[handle]
         if (model == null) {
@@ -272,7 +272,7 @@ class ExpoLlmMediapipeModule : Module() {
         
         // Use the async version with callback and event emission
         try {
-          model.generateResponseAsync(requestId, prompt) { result ->
+          model.generateResponseAsync(requestId, prompt, imageUris) { result ->
             try {
               if (result.isEmpty()) {
                 sendEvent("logging", mapOf(

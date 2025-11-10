@@ -1,29 +1,22 @@
-import * as FileSystem from 'expo-file-system'
+import { Directory, File, Paths, type FileInfo } from 'expo-file-system'
+import * as LegacyFileSystem from 'expo-file-system/legacy'
 
-const resolveBaseDirectory = () => FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? FileSystem.cacheDirectory
-
-const getModelPath = () => {
-  const basePath = resolveBaseDirectory()
-  if (!basePath) {
-    throw new Error('Unable to resolve model storage directory')
-  }
-  return `${basePath}${MODEL_FILENAME}`
-}
-
-const ensureParentDirectory = async (path: string) => {
-  const directory = path.replace(/[^/]+$/, '')
-  if (!directory) {
-    return
-  }
+const resolveBaseDirectory = (): Directory => {
   try {
-    await FileSystem.makeDirectoryAsync(directory, { intermediates: true })
+    const docDirectory = Paths.document
+    if (docDirectory?.uri) {
+      return docDirectory
+    }
   } catch {
-    // Directory already exists.
+    // Ignore and fallback to cache directory.
   }
+  return Paths.cache
 }
+
+const getModelFile = () => new File(resolveBaseDirectory(), MODEL_FILENAME)
 
 const downloadWithProgress = async (
-  destinationUri: string,
+  destination: File,
   options: { token?: string; onProgress?: (value: number) => void }
 ) => {
   const { token, onProgress } = options
@@ -34,11 +27,16 @@ const downloadWithProgress = async (
         }
       : undefined
 
-  await ensureParentDirectory(destinationUri)
+  const parentDirectory = destination.parentDirectory
+  try {
+    parentDirectory.create({ intermediates: true, idempotent: true })
+  } catch {
+    // Directory already exists; ignore.
+  }
 
-  const resumable = FileSystem.createDownloadResumable(
+  const resumable = LegacyFileSystem.createDownloadResumable(
     MODEL_URL,
-    destinationUri,
+    destination.uri,
     headers ? { headers, md5: false } : undefined,
     (progressEvent) => {
       const { totalBytesWritten, totalBytesExpectedToWrite } = progressEvent
@@ -61,7 +59,7 @@ export const MODEL_LABEL = 'Gemma 3n E2B (MediaPipe)'
 export const MODEL_FILENAME = 'gemma-3n-E2B-it-int4.task'
 export const MODEL_URL =
   'https://huggingface.co/google/gemma-3n-E2B-it-litert-preview/resolve/main/gemma-3n-E2B-it-int4.task'
-export const MODEL_PATH = getModelPath()
+export const MODEL_PATH = getModelFile().uri
 
 export type EnsureModelOptions = {
   token?: string
@@ -69,20 +67,22 @@ export type EnsureModelOptions = {
   forceRedownload?: boolean
 }
 
-export const getModelFileInfo = async () => {
+const readModelFileInfo = (file: File = getModelFile()): FileInfo => {
   try {
-    return await FileSystem.getInfoAsync(getModelPath())
+    return file.info()
   } catch {
-    return { exists: false }
+    return { exists: false as const, uri: file.uri }
   }
 }
 
+export const getModelFileInfo = async (): Promise<FileInfo> => readModelFileInfo()
+
 export const removeModelFile = async () => {
   try {
-    const path = getModelPath()
-    const info = await FileSystem.getInfoAsync(path)
+    const file = getModelFile()
+    const info = readModelFileInfo(file)
     if (info.exists) {
-      await FileSystem.deleteAsync(path, { idempotent: true })
+      file.delete()
     }
   } catch (error) {
     console.warn('Failed to delete model file', error)
@@ -93,22 +93,20 @@ export const ensureModelFile = async (
   options: EnsureModelOptions = {}
 ): Promise<string> => {
   const { token, onProgress, forceRedownload } = options
-  const path = getModelPath()
+  const file = getModelFile()
+  const existing = readModelFileInfo(file)
 
-  if (!forceRedownload) {
-    const info = await FileSystem.getInfoAsync(path)
-    if (info.exists) {
-      onProgress?.(1)
-      return path
-    }
+  if (existing.exists && !forceRedownload) {
+    onProgress?.(1)
+    return file.uri
   }
 
-  console.log('[localModelManager] Starting download to', path)
+  console.log('[localModelManager] Starting download to', file.uri)
   try {
-    await downloadWithProgress(path, { token, onProgress })
-    console.log('[localModelManager] Download completed at', path)
+    await downloadWithProgress(file, { token, onProgress })
+    console.log('[localModelManager] Download completed at', file.uri)
     onProgress?.(1)
-    return path
+    return file.uri
   } catch (error) {
     console.error('[localModelManager] Download failed, cleaning up', error)
     await removeModelFile()

@@ -13,9 +13,47 @@ import type {
   UseLLMDownloadableProps,
   PartialResponseEventPayload,
   ErrorResponseEventPayload,
+  PromptOrInput,
+  GenerationInput,
+  MediaAttachment,
 } from "./ExpoLlmMediapipe.types";
 
 const module = requireNativeModule<NativeModuleType>("ExpoLlmMediapipe");
+
+const normalizeGenerationInput = (input: PromptOrInput): GenerationInput => {
+  if (typeof input === "string") {
+    return { prompt: input };
+  }
+  return {
+    prompt: input.prompt,
+    attachments: input.attachments?.filter(
+      (attachment): attachment is MediaAttachment =>
+        Boolean(
+          attachment &&
+            typeof attachment.uri === "string" &&
+            attachment.uri.length > 0,
+        ),
+    ),
+  };
+};
+
+const extractImageUris = (attachments?: MediaAttachment[]): string[] | undefined => {
+  if (!attachments || attachments.length === 0) {
+    return undefined;
+  }
+  const imageUris = attachments
+    .filter((attachment) => attachment.type === "image" && attachment.uri.length > 0)
+    .map((attachment) => attachment.uri);
+  return imageUris.length ? imageUris : undefined;
+};
+
+const mapGenerationInput = (input: PromptOrInput) => {
+  const normalized = normalizeGenerationInput(input);
+  return {
+    prompt: normalized.prompt,
+    imageUris: extractImageUris(normalized.attachments),
+  };
+};
 
 // Hook Overloads
 export function useLLM(props: UseLLMDownloadableProps): DownloadableLlmReturn;
@@ -146,7 +184,7 @@ function _useLLMDownloadable(props: UseLLMDownloadableProps): DownloadableLlmRet
 
   const generateResponse = React.useCallback(
     async (
-      promptText: string,
+      input: PromptOrInput,
       onPartial?: (partial: string, reqId: number | undefined) => void,
       onErrorCb?: (message: string, reqId: number | undefined) => void,
       abortSignal?: AbortSignal,
@@ -154,6 +192,7 @@ function _useLLMDownloadable(props: UseLLMDownloadableProps): DownloadableLlmRet
       if (modelHandle === undefined) {
         throw new Error("Model is not loaded. Call loadModel() first.");
       }
+      const { prompt, imageUris } = mapGenerationInput(input);
       const requestId = nextRequestIdRef.current++;
 
       const partialSub = module.addListener("onPartialResponse", (ev: PartialResponseEventPayload) => {
@@ -168,7 +207,7 @@ function _useLLMDownloadable(props: UseLLMDownloadableProps): DownloadableLlmRet
       });
 
       try {
-        return await module.generateResponse(modelHandle, requestId, promptText);
+        return await module.generateResponse(modelHandle, requestId, prompt, imageUris);
       } catch (e) {
         console.error("Generate response error:", e);
         if (onErrorCb && !(abortSignal?.aborted ?? false)) {
@@ -185,7 +224,7 @@ function _useLLMDownloadable(props: UseLLMDownloadableProps): DownloadableLlmRet
 
   const generateStreamingResponse = React.useCallback(
     async (
-      promptText: string,
+      input: PromptOrInput,
       onPartial?: (partial: string, reqId: number) => void,
       onErrorCb?: (message: string, reqId: number) => void,
       abortSignal?: AbortSignal,
@@ -193,6 +232,7 @@ function _useLLMDownloadable(props: UseLLMDownloadableProps): DownloadableLlmRet
       if (modelHandle === undefined) {
         throw new Error("Model is not loaded. Call loadModel() first.");
       }
+      const { prompt, imageUris } = mapGenerationInput(input);
       const requestId = nextRequestIdRef.current++;
 
       return new Promise<void>((resolve, reject) => {
@@ -219,7 +259,7 @@ function _useLLMDownloadable(props: UseLLMDownloadableProps): DownloadableLlmRet
           });
         }
 
-        module.generateResponseAsync(modelHandle, requestId, promptText)
+        module.generateResponseAsync(modelHandle, requestId, prompt, imageUris)
           .then(() => {
             if (!(abortSignal?.aborted ?? false)) {
               errorSubscription.remove();
@@ -327,7 +367,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
 
   const generateResponse = React.useCallback(
     async (
-      promptText: string,
+      input: PromptOrInput,
       onPartial?: (partial: string, reqId: number | undefined) => void,
       onErrorCb?: (message: string, reqId: number | undefined) => void,
       abortSignal?: AbortSignal,
@@ -335,6 +375,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
       if (modelHandle === undefined) {
         throw new Error("Model handle is not defined. Ensure model is created/loaded.");
       }
+      const { prompt, imageUris } = mapGenerationInput(input);
       const requestId = nextRequestIdRef.current++;
 
       const partialSub = module.addListener("onPartialResponse", (ev: PartialResponseEventPayload) => {
@@ -349,7 +390,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
       });
 
       try {
-        return await module.generateResponse(modelHandle, requestId, promptText);
+        return await module.generateResponse(modelHandle, requestId, prompt, imageUris);
       } catch (e) {
         console.error("Generate response error:", e);
         if (onErrorCb && !(abortSignal?.aborted ?? false)) {
@@ -366,7 +407,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
 
   const generateStreamingResponse = React.useCallback(
     async (
-      promptText: string,
+      input: PromptOrInput,
       onPartial?: (partial: string, reqId: number) => void,
       onErrorCb?: (message: string, reqId: number) => void,
       abortSignal?: AbortSignal,
@@ -374,6 +415,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
       if (modelHandle === undefined) {
         throw new Error("Model handle is not defined. Ensure model is created/loaded.");
       }
+      const { prompt, imageUris } = mapGenerationInput(input);
       const requestId = nextRequestIdRef.current++;
 
       return new Promise<void>((resolve, reject) => {
@@ -400,7 +442,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
           });
         }
 
-        module.generateResponseAsync(modelHandle, requestId, promptText)
+        module.generateResponseAsync(modelHandle, requestId, prompt, imageUris)
           .then(() => {
             if (!(abortSignal?.aborted ?? false)) {
               errorSubscription.remove();
@@ -437,7 +479,7 @@ function _useLLMBase(props: UseLLMAssetProps | UseLLMFileProps): BaseLlmReturn {
  */
 export function generateStreamingText(
   modelHandle: number,
-  prompt: string,
+  input: PromptOrInput,
   onPartialResponse?: (text: string, requestId: number) => void,
   onError?: (error: string, requestId: number) => void,
   abortSignal?: AbortSignal,
@@ -502,8 +544,10 @@ export function generateStreamingText(
       });
     }
 
+    const { prompt, imageUris } = mapGenerationInput(input);
+
     module
-      .generateResponseAsync(modelHandle, requestId, prompt)
+      .generateResponseAsync(modelHandle, requestId, prompt, imageUris)
       .then(() => {
         if (!(abortSignal?.aborted ?? false)) {
           partialSubscription.remove();

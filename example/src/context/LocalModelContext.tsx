@@ -12,7 +12,6 @@ import React, {
 import {
   ensureModelFile,
   getModelFileInfo,
-  MODEL_PATH,
   removeModelFile,
   MODEL_FILENAME,
   MODEL_LABEL,
@@ -102,7 +101,7 @@ export const LocalModelProvider = ({ children }: { children: React.ReactNode }) 
         }
         if (info.exists) {
           setHasLocalModel(true)
-          setModelPath(MODEL_PATH)
+          setModelPath(info.uri ?? null)
           setDownloadStatus('ready')
         }
       } catch (error) {

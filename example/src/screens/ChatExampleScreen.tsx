@@ -1,5 +1,6 @@
 import { generateStreamingText } from 'expo-gemma'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import * as ImagePicker from 'expo-image-picker'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native'
 
 import { useLocalModel } from '../context/LocalModelContext'
@@ -19,6 +21,12 @@ type ChatMessage = {
   id: string
   role: ChatRole
   content: string
+  images?: string[]
+}
+
+type ImageAttachment = {
+  id: string
+  uri: string
 }
 
 const SYSTEM_PROMPT =
@@ -40,17 +48,22 @@ const buildPromptFromMessages = (messages: ChatMessage[]) => {
           : entry.role === 'user'
             ? 'User'
             : 'System'
-      return `${speaker}: ${entry.content}`
+      const attachmentNote =
+        entry.images && entry.images.length > 0
+          ? ` [${entry.images.length} image${entry.images.length > 1 ? 's' : ''} attached]`
+          : ''
+      return `${speaker}: ${entry.content}${attachmentNote}`
     })
     .join('\n')
 
   return `${SYSTEM_PROMPT}\n${body}\nAssistant:`
 }
 
-const createMessage = (role: ChatRole, content: string): ChatMessage => ({
+const createMessage = (role: ChatRole, content: string, options?: { images?: string[] }): ChatMessage => ({
   id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
   role,
   content,
+  images: options?.images?.length ? options.images : undefined,
 })
 
 export default function ChatExampleScreen() {
@@ -76,6 +89,7 @@ export default function ChatExampleScreen() {
   const [inputText, setInputText] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [uiError, setUiError] = useState<string | null>(null)
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
 
   const scrollViewRef = useRef<ScrollView>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -98,16 +112,63 @@ export default function ChatExampleScreen() {
     )
   }, [])
 
+  const appendImages = useCallback((uris: string[]) => {
+    setPendingImages((prev) => [
+      ...prev,
+      ...uris.map((uri) => ({
+        id: `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        uri,
+      })),
+    ])
+  }, [])
+
+  const removePendingImage = useCallback((id: string) => {
+    setPendingImages((prev) => prev.filter((item) => item.id !== id))
+  }, [])
+
+  const handlePickFromLibrary = useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      setUiError('Media library permission is required to attach images.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsMultipleSelection: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets) {
+      appendImages(result.assets.map((asset) => asset.uri).filter(Boolean) as string[])
+    }
+  }, [appendImages])
+
+  const handleCaptureImage = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync()
+    if (!permission.granted) {
+      setUiError('Camera permission is required to capture images.')
+      return
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      appendImages([result.assets[0].uri])
+    }
+  }, [appendImages])
+
   const sendMessage = useCallback(async () => {
     const trimmed = inputText.trim()
-    if (!trimmed || modelHandle == null || isGenerating || isSettingUp) {
+    const currentImages = pendingImages.map((image) => image.uri)
+    if ((trimmed.length === 0 && currentImages.length === 0) || modelHandle == null || isGenerating || isSettingUp) {
       return
     }
 
     setUiError(null)
     setInputText('')
 
-    const userMessage = createMessage('user', trimmed)
+    const displayText = trimmed.length > 0 ? trimmed : currentImages.length > 0 ? '(Image attachment)' : ''
+    const userMessage = createMessage('user', displayText, { images: currentImages })
     const assistantMessage = createMessage('assistant', '...')
     const nextMessages = [...messages, userMessage, assistantMessage]
     setMessages(nextMessages)
@@ -122,7 +183,10 @@ export default function ChatExampleScreen() {
     try {
       await generateStreamingText(
         modelHandle,
-        prompt,
+        {
+          prompt,
+          attachments: currentImages.map((uri) => ({ type: 'image' as const, uri })),
+        },
         (chunk) => {
           accumulated += chunk
           updateAssistantMessage(assistantMessage.id, accumulated || '...')
@@ -151,6 +215,7 @@ export default function ChatExampleScreen() {
       abortControllerRef.current = null
       setIsGenerating(false)
     }
+    setPendingImages([])
   }, [
     inputText,
     modelHandle,
@@ -158,6 +223,7 @@ export default function ChatExampleScreen() {
     isSettingUp,
     messages,
     updateAssistantMessage,
+    pendingImages,
   ])
 
   const handleStop = useCallback(() => {
@@ -176,8 +242,9 @@ export default function ChatExampleScreen() {
     setUiError(null)
   }, [handleStop, isGenerating])
 
+  const hasPendingImages = pendingImages.length > 0
   const disableSend =
-    !modelReady || isGenerating || isSettingUp || !inputText.trim()
+    !modelReady || isGenerating || isSettingUp || (!inputText.trim() && !hasPendingImages)
 
   return (
     <KeyboardAvoidingView
@@ -280,29 +347,79 @@ export default function ChatExampleScreen() {
                   message.role === 'user' ? styles.userRow : styles.assistantRow,
                 ]}
               >
-                <View
-                  style={[
-                    styles.messageBubble,
-                    message.role === 'user'
-                      ? styles.userBubble
-                      : styles.assistantBubble,
-                  ]}
-                >
-                  <Text
-                    style={
+                <View style={styles.messageContentWrapper}>
+                  <View
+                    style={[
+                      styles.messageBubble,
                       message.role === 'user'
-                        ? styles.userText
-                        : styles.assistantText
-                    }
+                        ? styles.userBubble
+                        : styles.assistantBubble,
+                    ]}
                   >
-                    {message.content}
-                  </Text>
+                    <Text
+                      style={
+                        message.role === 'user'
+                          ? styles.userText
+                          : styles.assistantText
+                      }
+                    >
+                      {message.content}
+                    </Text>
+                  </View>
+                  {message.images && message.images.length > 0 && (
+                    <View style={styles.messageImageGrid}>
+                      {message.images.map((uri, index) => (
+                        <Image
+                          key={`${message.id}-img-${index}`}
+                          source={{ uri }}
+                          style={styles.messageImage}
+                        />
+                      ))}
+                    </View>
+                  )}
                 </View>
               </View>
             ))}
           </View>
         </View>
       </ScrollView>
+
+      {pendingImages.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.attachmentPreviewRow}
+        >
+          {pendingImages.map((image) => (
+            <View key={image.id} style={styles.attachmentThumb}>
+              <Image source={{ uri: image.uri }} style={styles.attachmentThumbImage} />
+              <TouchableOpacity
+                style={styles.attachmentRemoveButton}
+                onPress={() => removePendingImage(image.id)}
+              >
+                <Text style={styles.removeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
+      <View style={styles.attachmentToolbar}>
+        <TouchableOpacity
+          style={styles.attachmentButton}
+          onPress={handlePickFromLibrary}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.attachmentButtonText}>Photo Library</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.attachmentButton}
+          onPress={handleCaptureImage}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.attachmentButtonText}>Camera</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.composer}>
         <TextInput
@@ -471,8 +588,10 @@ const styles = StyleSheet.create({
   assistantRow: {
     justifyContent: 'flex-start',
   },
-  messageBubble: {
+  messageContentWrapper: {
     maxWidth: '85%',
+  },
+  messageBubble: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
@@ -490,6 +609,70 @@ const styles = StyleSheet.create({
   },
   assistantText: {
     color: '#111827',
+  },
+  messageImageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 8,
+  },
+  messageImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  attachmentPreviewRow: {
+    maxHeight: 110,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  attachmentThumb: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    marginRight: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  attachmentThumbImage: {
+    width: '100%',
+    height: '100%',
+  },
+  attachmentRemoveButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(17, 24, 39, 0.7)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    lineHeight: 14,
+  },
+  attachmentToolbar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  attachmentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  attachmentButtonText: {
+    color: '#1F2937',
+    fontWeight: '500',
   },
   composer: {
     position: 'absolute',

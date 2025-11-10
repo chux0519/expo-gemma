@@ -31,6 +31,18 @@ export type LoggingEventPayload = {
   message: string;
 };
 
+export type MediaAttachment = {
+  type: "image" | "audio";
+  uri: string;
+};
+
+export type GenerationInput = {
+  prompt: string;
+  attachments?: MediaAttachment[];
+};
+
+export type PromptOrInput = string | GenerationInput;
+
 // LLM Types and Hook
 type LlmModelLocation =
   | { storageType: "asset"; modelName: string }
@@ -87,13 +99,13 @@ export type UseLLMDownloadableProps = BaseLlmParams & { modelUrl: string; modelN
 // Return types for the useLLM hook
 export interface BaseLlmReturn {
   generateResponse: (
-    promptText: string,
+    input: PromptOrInput,
     onPartial?: (partial: string, reqId: number | undefined) => void,
     onErrorCb?: (message: string, reqId: number | undefined) => void,
     abortSignal?: AbortSignal
   ) => Promise<string>;
   generateStreamingResponse: (
-    promptText: string,
+    input: PromptOrInput,
     onPartial?: (partial: string, reqId: number) => void,
     onErrorCb?: (message: string, reqId: number) => void,
     abortSignal?: AbortSignal
@@ -161,6 +173,7 @@ export interface ExpoLlmMediapipeModule {
     handle: number,
     requestId: number,
     prompt: string,
+    imageUris?: string[],
   ): Promise<string>;
 
   /**
@@ -174,6 +187,7 @@ export interface ExpoLlmMediapipeModule {
     handle: number,
     requestId: number,
     prompt: string,
+    imageUris?: string[],
   ): Promise<boolean>;
 
   /**

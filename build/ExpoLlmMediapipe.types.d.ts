@@ -25,6 +25,15 @@ export type LoggingEventPayload = {
     handle: number;
     message: string;
 };
+export type MediaAttachment = {
+    type: "image" | "audio";
+    uri: string;
+};
+export type GenerationInput = {
+    prompt: string;
+    attachments?: MediaAttachment[];
+};
+export type PromptOrInput = string | GenerationInput;
 type LlmModelLocation = {
     storageType: "asset";
     modelName: string;
@@ -98,8 +107,8 @@ export type UseLLMDownloadableProps = BaseLlmParams & {
     modelPath?: undefined;
 };
 export interface BaseLlmReturn {
-    generateResponse: (promptText: string, onPartial?: (partial: string, reqId: number | undefined) => void, onErrorCb?: (message: string, reqId: number | undefined) => void, abortSignal?: AbortSignal) => Promise<string>;
-    generateStreamingResponse: (promptText: string, onPartial?: (partial: string, reqId: number) => void, onErrorCb?: (message: string, reqId: number) => void, abortSignal?: AbortSignal) => Promise<void>;
+    generateResponse: (input: PromptOrInput, onPartial?: (partial: string, reqId: number | undefined) => void, onErrorCb?: (message: string, reqId: number | undefined) => void, abortSignal?: AbortSignal) => Promise<string>;
+    generateStreamingResponse: (input: PromptOrInput, onPartial?: (partial: string, reqId: number) => void, onErrorCb?: (message: string, reqId: number) => void, abortSignal?: AbortSignal) => Promise<void>;
     isLoaded: boolean;
 }
 export interface DownloadableLlmReturn extends BaseLlmReturn {
@@ -142,7 +151,7 @@ export interface ExpoLlmMediapipeModule {
      * @param prompt - The input prompt for the model.
      * @returns A promise that resolves to the generated response.
      */
-    generateResponse(handle: number, requestId: number, prompt: string): Promise<string>;
+    generateResponse(handle: number, requestId: number, prompt: string, imageUris?: string[]): Promise<string>;
     /**
      * Generates a response asynchronously based on the provided prompt.
      * @param handle - The model handle.
@@ -150,7 +159,7 @@ export interface ExpoLlmMediapipeModule {
      * @param prompt - The input prompt for the model.
      * @returns A promise that resolves to a boolean indicating success or failure.
      */
-    generateResponseAsync(handle: number, requestId: number, prompt: string): Promise<boolean>;
+    generateResponseAsync(handle: number, requestId: number, prompt: string, imageUris?: string[]): Promise<boolean>;
     /**
      * Checks if a model is downloaded.
      * @param modelName - The name of the model to check.

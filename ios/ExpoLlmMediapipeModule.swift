@@ -90,13 +90,13 @@ public class ExpoLlmMediapipeModule: Module {
     }
   }
 
-  private func generateResponse(handle: Int, requestId: Int, prompt: String, promise: Promise) {
+  private func generateResponse(handle: Int, requestId: Int, prompt: String, imageUris: [String]?, promise: Promise) {
     guard let model = modelMap[handle] else {
       promise.reject("INVALID_HANDLE", "No model found for handle \(handle)")
       return
     }
     do {
-      try model.generateResponse(requestId: requestId, prompt: prompt) { result in
+      try model.generateResponse(requestId: requestId, prompt: prompt, imagePaths: imageUris) { result in
         switch result {
         case .success(let response):
           promise.resolve(response)
@@ -109,13 +109,13 @@ public class ExpoLlmMediapipeModule: Module {
     }
   }
 
-  private func generateResponseAsync(handle: Int, requestId: Int, prompt: String, promise: Promise) {
+  private func generateResponseAsync(handle: Int, requestId: Int, prompt: String, imageUris: [String]?, promise: Promise) {
     guard let model = modelMap[handle] else {
       promise.reject("INVALID_HANDLE", "No model found for handle \(handle)")
       return
     }
     do {
-      try model.generateStreamingResponse(requestId: requestId, prompt: prompt) { completed in
+      try model.generateStreamingResponse(requestId: requestId, prompt: prompt, imagePaths: imageUris) { completed in
         if completed {
           promise.resolve(true)
         } else {
