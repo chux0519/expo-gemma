@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Expo Gemma Example",
+    "slug": "expo-gemma-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "ios"
+    ],
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yongsheng.expo-gemma-example",
+      "appleTeamId": "DKSW9646HG"
+    },
+    "plugins": [
+      "expo-gemma"
+    ]
+  }
+}

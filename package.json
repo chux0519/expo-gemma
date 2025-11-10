@@ -36,6 +36,18 @@
   "author": "Tirthajyoti Ghosh <itirthahere@gmail.com> (https://github.com/tirthajyoti-ghosh)",
   "license": "MIT",
   "homepage": "https://github.com/chux0519/expo-gemma#readme",
+  "files": [
+    "android",
+    "ios",
+    "build",
+    "src",
+    "assets",
+    "plugins",
+    "app.plugin.js",
+    "expo-module.config.json",
+    "README.md",
+    "LICENSE"
+  ],
   "devDependencies": {
     "@types/react": "~18.3.12",
     "expo": "~52.0.0",

@@ -89,6 +89,34 @@ const run = async () => {
    ```
 5. **Rebuild once per platform** (`npx expo run:ios`, `npx expo run:android`, or your bare workflow) to let Expo autolinking pick up the dependency from the new package name.
 
+## iOS Example App (`example/`)
+
+Need a starting point without navigation tabs? The repository now ships with a minimal Expo project under `example/` that reuses the `LocalModelContext` and chat UI patterns from `../poti`, but compresses everything into a single page (model setup + Hugging Face token + chat composer).
+
+1. **Install dependencies**:
+   ```bash
+   cd example
+   npm install
+   # or use your preferred package manager
+   ```
+   > The example relies on `npm link` (or your package manager’s local-link equivalent) so the root module is consumed directly. Run `npm link` in the repo root once, then `cd example && npm link expo-gemma` to wire the symlink. `expo.autolinking.nativeModulesDir = ".."` ensures the native side also points to the workspace.
+2. **Prebuild for iOS** so the plugin and podspec are applied:
+   ```bash
+   npx expo prebuild ios --clean
+   ```
+3. **Open/run** the generated workspace:
+   ```bash
+   npx pod-install
+   npx expo run:ios
+   # or open ios/ExpoGemmaExample.xcworkspace in Xcode for full Swift tooling
+   ```
+4. **Test the UI** – the `ChatScreen`-style panel now hosts:
+   - Model download/setup controls (status, reload, clear cache).
+   - Secure Hugging Face token storage field.
+   - Conversation area with streaming responses and a stop/reset action.
+
+Because the dependency is declared as `"expo-gemma": "file:.."`, the example always consumes your local changes without publishing to npm.
+
 ## Minimum Supported Versions
 
 - **iOS**: 14+
